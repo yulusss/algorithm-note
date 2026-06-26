@@ -1,0 +1,220 @@
+#### 类实现前缀树
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+using ll = long long;
+
+class Trie
+{
+    private:
+        struct Node
+        {
+            Node* child[26];
+            int pass;
+            int end;
+            Node()
+            {
+
+                pass=0;
+                end=0;
+                for(int i=0;i<26;++i) child[i]=nullptr;
+            }
+        };
+        Node* root;
+    public:
+        Trie()
+        {
+            root=new Node();
+        }
+        void insert(string word)
+        {
+            Node* cur=root;
+            cur->pass++;
+            for(char c:word)
+            {
+                int idx=c-'a';
+                if(cur->child[idx]==nullptr) cur->child[idx]=new Node();
+                cur=cur->child[idx];
+                cur->pass++;
+            }
+            cur->end++;
+        }
+        int countWords(string word)
+        {
+            Node* cur=root;
+            for(char c:word)
+            {
+                int idx=c-'a';
+                if(cur->child[idx]==nullptr) return 0;
+                cur=cur->child[idx];
+            }
+            return cur->end;
+        }
+        int countWordsStarting(string word)
+        {
+            Node* cur=root;
+            for(char c:word)
+            {
+                int idx=c-'a';
+                if(cur->child[idx]==nullptr) return 0;
+                cur=cur->child[idx];
+            }
+            return cur->pass;
+        }
+};
+
+void solve() {
+    Trie trie;
+    trie.insert("apple");
+    trie.insert("apple");
+    trie.insert("app");
+    cout<<trie.countWords("apple")<<"\n";
+    cout<<trie.countWordsStarting("app")<<"\n";
+    cout<<trie.countWordsStarting("bpp")<<"\n";
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int T = 1;
+    // cin >> T;
+
+    while (T--) {
+        solve();
+    }
+
+    return 0;
+}
+```
+
+#### 数组实现前缀树
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+using ll = long long;
+
+class Trie
+{
+private:
+    // 这里的 N 不是字符串长度，也不是单词个数，而是表示最多有多少个 Trie 节点
+    // 前缀树里，一个节点不一定表示一个单词，而是表示一个字符位置
+    // 插入 apple 时，可能会产生: root->a->p->p->l->e 六个节点。
+    // 如何确定 N：
+    // 最多插入单词数 * 每个单词最长的长度 + 1(常写 5)
+    static const int N = 1e5 + 5;
+    // 表示 Trie 最多有 N 个节点，每个节点最多有 26 个儿子
+    /*
+        可以将其想象成一张表：
+            son[u][c]: 表示从 u 的节点，走字符 c，会到哪个节点。  c->当前节点编号  c->字母编号
+            例：新增“app”
+            son[0][0] = 1;  // 0 走 a 到 1
+            son[1][15] = 2; // 1 走 p 到 2 
+            son[2][15] = 3; // 2 走 p 到 3
+
+            如果 son[0][0] = 0,表示 根节点 0 还没有 'a' 这条路
+            0 表示没有这条边，其他数表示可以走到某个节点
+    */
+    int son[N][26];
+    // 表示有多少个单词经过这个节点
+    int pass[N];
+    // 表示有多少个单词刚好在这个节点结束
+    int End[N];
+    // 表示 当前用了多少个节点(已经创建到了几号节点)
+    // 初始为 0 ，表示只有根节点
+    // 每次需要新建节点时：son[p][c] = ++idx;  表示新建一个节点，编号是 idx + 1.然后接到 son[p][c] 上
+    int idx;
+public:
+    Trie()
+    {
+        /*
+            momset(数组名，填充值，字节数)
+            这里的 memset(pass,0,sizeof pass); 表示把 pass 这块内存的所有字节都设置成 0
+            这里的 momset 操作的是字节，不是按 int 一个一个赋值，而是按字节填充。
+
+            int pass[5];
+            memset(pass, 0, sizeof pass);
+            相当于把整块内存全部变成：
+            00000000 00000000 00000000 ...
+            因为整数 0 的二进制全是 0，所以这样写可以把所有 int 变成 0。
+            
+            等价于
+            for (int i = 0; i < N; ++i) {
+                pass[i] = 0;
+            }
+        */
+       /*
+            sizeof 是 c++ 里的运算符，用来求  某个变量或类型占多少字节
+            sizeof int -> 4
+            int pass[10];
+            sizeof(pass) -> 10 * 4 = 40
+            
+            所以：
+            memset(pass, 0, sizeof pass);
+            就是把 40 个字节全部清零。
+       */
+        memset(son,0,sizeof son);
+        memset(pass,0,sizeof pass);
+        memset(End,0,sizeof End);
+        idx = 0;
+    }
+    void insert(string word)
+    {
+        int p = 0;
+        pass[p]++;
+        for(char ch : word)
+        {
+            int c = ch - 'a';
+            if(son[p][c]==0) son[p][c] = ++idx;
+            p = son[p][c];
+            pass[p]++;
+        }
+        End[p]++;
+    }
+    int countWords(string word)
+    {
+        int p = 0;
+        for(char ch : word)
+        {
+            int c = ch - 'a';
+            if(son[p][c]==0) return 0;
+            p=son[p][c];
+        }
+        return End[p];
+    }
+    int countWordsStarting(string word)
+    {
+        int p=0;
+        for(char ch:wprd)
+        {
+            int c=ch-'a';
+            if(son[p][c]==0) return 0;
+            p=son[p][c];
+        }
+        return pass[p];
+    }
+};
+
+void solve() {
+    
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int T = 1;
+    // cin >> T;
+
+    while (T--) {
+        solve();
+    }
+
+    return 0;
+}
+```
+
