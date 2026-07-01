@@ -1,0 +1,193 @@
+## 题目
+
+给定 `n` 个非负整数表示每个宽度为 `1` 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。
+
+**示例 1：**
+```
+输入：height = [0,1,0,2,1,0,1,3,2,1,2,1]
+输出：6
+解释：上面是由数组 [0,1,0,2,1,0,1,3,2,1,2,1] 表示的高度图，在这种情况下，可以接 6 个单位的雨水（蓝色部分表示雨水）。 
+```
+
+**示例 2：**
+
+```
+输入：height = [4,2,0,3,2,5]
+输出：9
+```
+
+## 解题
+
+#### 思路
+
+题目要求根据所给高度返回所有能接到的雨水数量(一格就是一个雨水).
+
+实际上只需要求出每一个索引处所能接到的雨水数，再相加就可以了。
+
+此时就要思考如何得到第 i 处的雨水数量，观察图像，能够看出，第 i 处的雨水数量实际就是 
+$$
+max(min (0 到 i-1 的最大高度 , i+1 到 n-1 的最大高度)  - 第 i 处的高度,0)
+$$
+此时问题就来到了如何获得左侧最大值以及右侧最大值.
+
+可以维护两个数组：
+
+left_max:  从 0 到 n-1 遍历比较大小，第 i 处的值代表 0 到 i 的最大值(实际上就是前缀和的思想)。
+
+right_max: 从 n-1 到 0 遍历比较大小，第 i 处的值代表 i 到 n-1 的最大值。
+
+此时 想要获得第 i 处的雨水数量，就：
+$$
+max(min(leftmax[i-1],rightmax[i+1])-height[i],0)
+$$
+使用
+$$
+min(leftmax[i-1],rightmax[i+1]
+$$
+可以理解为木桶效应。
+
+#### code
+
+###### 时间复杂度O(n),空间复杂度O(n)
+
+```cpp
+/*
+ * @lc app=leetcode.cn id=42 lang=cpp
+ *
+ * [42] 接雨水
+ */
+
+// @lc code=start
+class Solution {
+public:
+    int trap(vector<int>& height) {
+        int n=height.size();
+        vector<int>l_max(n),r_max(n);
+        l_max[0]=height[0];
+        r_max[n-1]=height[n-1];
+        // 第0处和第n-1处的雨水数量一定是0，因为其左边或右边没有高度，自然就接不到雨水，所以可以跳过遍历
+        for(int i=1,j=n-2;i<n&&j>=0;++i,--j)
+        {
+            l_max[i]=max(l_max[i-1],height[i]);
+            r_max[j]=max(r_max[j+1],height[j]);
+        }
+        int ans=0;
+        for(int i=1;i<n-1;++i)
+        {
+            ans+=max(0,min(l_max[i-1],r_max[i+1])-height[i]);
+        }
+        return ans;
+    }
+};
+// @lc code=end
+
+
+```
+
+#### 空间优化(双指针)
+
+使用双指针进行优化:
+$$
+初始 left -> 索引 1，right -> 索引 n-2
+$$
+
+$$
+初始 leftmax = height[0],rightmax = height[n-1]
+$$
+
+如果此时
+$$
+leftmax<rightmax
+$$
+仔细观察可以发现:
+	此时左侧的最大值实际上已经小于了右边的 `一个` 最大值,那就说明 当前 left 处 一定是使用 leftmax 进行雨水数量的计算,因为leftmax 已经是能够看见的左侧最大值，已经小于右侧的未知区域的一个最大值，那它一定小于右边的最大值(这里未知区域的 max 是当前能看到的一个最大值)
+
+此时
+$$
+ans+=max(0,leftmax-height[left])
+$$
+随后将 leftmax 向后移动，并随之判断是否更新大小，left 也随之指向下一个索引位置
+$$
+leftmax=max(leftmax,height[left])
+$$
+
+$$
+left++
+$$
+
+相反如果
+$$
+leftmax>rightmax
+$$
+此时 右侧的最大值已然小于了左侧未知区域的一个最大值，那么 right 处一定是使用 rightmax 来进行雨水数量的计算。
+$$
+ans+=max(0,rightmax-height[right])
+$$
+随后将 rightmax 向前移动，并随之判断是否更新大小，right 也随之指向前一个索引位置
+$$
+rightmax=max(rightmax,height[right])
+$$
+
+$$
+right--
+$$
+
+当
+$$
+leftmax==rightmax
+$$
+此时计算 left 可以，计算 right 也可以，同时计算也可以0
+
+当计算 left 时:
+$$
+leftmax=xxx
+$$
+
+$$
+最终右边所有的最大值一定 >= xxx
+$$
+
+right 也同理，所以左右一起计算也可以
+
+最后重复上述步骤，直到
+$$
+l>r
+$$
+
+#### code
+
+###### 时间复杂度O(n),空间复杂度O(1)
+
+```cpp
+/*
+ * @lc app=leetcode.cn id=42 lang=cpp
+ *
+ * [42] 接雨水
+ */
+
+// @lc code=start
+class Solution {
+public:
+    int trap(vector<int>& height) {
+        int l=1,r=(int)height.size()-2,l_max=height[0],r_max=height[(int)height.size()-1],ans=0;
+        while(l<=r)
+        {
+            if(l_max<=r_max)
+            {
+                ans+=max(0,l_max-height[l]);
+                l_max=max(l_max,height[l++]);
+            }
+            else
+            {
+                ans+=max(0,r_max-height[r]);
+                r_max=max(r_max,height[r--]);
+            }
+        }
+        return ans;
+    }
+};
+// @lc code=end
+
+
+```
+
