@@ -1,0 +1,205 @@
+## 题目
+
+给定两个字符串 `s` 和 `t`，长度分别是 `m` 和 `n`，返回 s 中的 **最短窗口 子串**，使得该子串包含 `t` 中的每一个字符（**包括重复字符**）。如果没有这样的子串，返回空字符串 `""`。
+
+测试用例保证答案唯一。
+
+ 
+
+**示例 1：**
+
+```
+输入：s = "ADOBECODEBANC", t = "ABC"
+输出："BANC"
+解释：最小覆盖子串 "BANC" 包含来自字符串 t 的 'A'、'B' 和 'C'。
+```
+
+**示例 2：**
+
+```
+输入：s = "a", t = "a"
+输出："a"
+解释：整个字符串 s 是最小覆盖子串。
+```
+
+**示例 3:**
+
+```
+输入: s = "a", t = "aa"
+输出: ""
+解释: t 中两个字符 'a' 均应包含在 s 的子串中，
+因此没有符合条件的子字符串，返回空字符串。
+```
+
+ 
+
+**提示：**
+
+- `m == s.length`
+- `n == t.length`
+- `1 <= m, n <= 105`
+- `s` 和 `t` 由英文字母组成
+
+------
+
+## 解题
+
+#### 解题思路
+
+由题意可知，结果要求返回 最短窗口字串，并且该字串包含 t 中的每一个字符(包括重复字符)。
+
+大致思路很容易想到，就是利用滑动窗口去查询哪些字串拥有t所有的字符，并输出最小长度的窗口。
+
+#### 设计思路
+
+本题可以采用**滑动窗口 + 欠债还债思想**求解。
+
+首先定义一个**哈希表（或数组）** `debt`，用于记录窗口内每个字符的**欠债情况**。
+
+初始化时，将字符串 `t` 中的所有字符加入 `debt` 中，并将对应字符的计数减一，表示当前窗口对这些字符均处于**欠债状态**。
+
+随后利用左右指针维护一个滑动窗口，当右指针不断向右扩展窗口时，对当前字符执行"还债"操作，即更新 `debt` 中对应字符的计数。
+
+同时维护一个变量 `debtsz`，表示**当前窗口还欠多少个字符**。
+
+- 当右指针加入的字符正好是当前窗口仍然欠缺的字符（即加入前 `debt[s[r]] < 0`）时，说明成功偿还了一个字符，因此令 `debtsz--`。
+- 当 `debtsz == 0` 时，说明当前窗口已经包含了 `t` 中的全部字符（包括重复字符），此时当前窗口为一个**合法窗口**。
+
+------
+
+为了记录最终答案，还需要维护以下两个变量。
+
+###### 1. 最短窗口长度 `min_l`
+
+初始化为无穷大。
+
+每当窗口满足合法条件（`debtsz == 0`）时，比较当前窗口长度与 `min_l`：
+
+- 若当前窗口更短，则更新 `min_l`；
+- 否则保持不变。
+
+遍历结束后：
+
+- 若 `min_l` 仍为无穷大，说明不存在满足条件的子串，返回空字符串；
+- 否则返回长度为 `min_l` 的最短覆盖子串。
+
+------
+
+###### 2. 最短窗口起始位置 `start`
+
+当发现当前合法窗口长度小于 `min_l` 时，同时记录当前窗口左端点 `left` 作为答案的起始位置。
+
+最终返回 `s.substr(start, min_l)` 即可得到最短覆盖子串。
+
+------
+
+当窗口已经满足覆盖条件后，为了寻找更短的合法窗口，需要不断尝试收缩窗口左边界。
+
+1. 判断当前左端字符是否会影响窗口的合法性。
+
+   若 `debt[s[left]] == 0`，说明该字符在当前窗口中的数量**恰好满足** `t` 的需求，此时若将其移出窗口，窗口将重新进入欠债状态，因此需要执行：
+
+   - `debtsz++`，表示窗口重新欠缺一个字符；
+   - `debt[s[left]]--`，恢复该字符的欠债状态。
+
+2. 若 `debt[s[left]] > 0`，说明当前字符在窗口中属于**冗余字符**，即使将其移出也不会影响窗口的合法性，仅需更新 `debt` 后继续收缩窗口即可。
+
+3. 最后将左指针右移（`left++`），继续尝试缩小窗口，直到窗口重新变为非法，再继续移动右指针扩展窗口。
+
+------
+
+#### code
+
+###### 哈希表实现
+
+```cpp
+/*
+ * @lc app=leetcode.cn id=76 lang=cpp
+ *
+ * [76] 最小覆盖子串
+ */
+
+// @lc code=start
+class Solution {
+public:
+    string minWindow(string s, string t) {
+        int m=(int)s.size(),n=(int)t.size();
+        if(m<n) return "";
+        unordered_map<char,int> debt;
+        for(int i=0;i<n;++i) debt[t[i]]-=1;
+        int start=0,l=0,min_l=0x3f3f3f3f,debtsz=n;
+        for(int r=0;r<m;++r)
+        {
+            if(find(t.begin(),t.end(),s[r])!=t.end()&&debt[s[r]]<0)
+            {
+                debtsz-=1;
+            }
+            debt[s[r]]+=1;
+            while(debtsz==0)
+            {
+                if(r-l+1<min_l)
+                {
+                    min_l=r-l+1;
+                    start=l;
+                }
+                if(find(t.begin(),t.end(),s[l])!=t.end())
+                {
+                    if(debt[s[l]]==0) debtsz+=1;
+                    debt[s[l]]-=1;
+                }
+                l++;
+            }
+        }
+        string ans="";
+        if(min_l==0x3f3f3f3f) return "";
+        for(int i=start;i<start+min_l;++i) ans+=s[i];
+        return ans;
+    }
+};
+// @lc code=end
+
+
+```
+
+###### 数组实现+优化
+
+```cpp
+/*
+ * @lc app=leetcode.cn id=76 lang=cpp
+ *
+ * [76] 最小覆盖子串
+ */
+
+// @lc code=start
+class Solution {
+public:
+    string minWindow(string s, string t) {
+        int m=(int)s.size(),n=(int)t.size();
+        if(m<n) return "";
+        vector<int> debt(128,0);
+        for(char c:t) debt[c]--;
+        int l=0,start=0,min_l=0x3f3f3f3f,debtsz=n;
+        for(int r=0;r<m;++r)
+        {
+            if(debt[s[r]]<0) debtsz--;
+            debt[s[r]]++;
+            while(debtsz==0)
+            {
+                if(r-l+1<min_l)
+                {
+                    min_l=r-l+1;
+                    start=l;
+                }
+                if(debt[s[l]]==0) debtsz++;
+                debt[s[l]]--;
+                l++;
+            }
+        }   
+        return min_l==0x3f3f3f3f?"":s.substr(start,min_l);
+    }
+};
+// @lc code=end
+
+
+```
+
